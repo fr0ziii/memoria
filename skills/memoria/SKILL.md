@@ -56,13 +56,6 @@ Optional:
 - `vault`
 - `rebuild`
 
-## Slash command CLI
+## Vault path
 
-You can also run:
-
-- `/memoria vault`
-- `/memoria search "query"`
-- `/memoria read "file"`
-- `/memoria index --rebuild`
-
-Use `--vault <path>` when working outside the vault tree.
+The tool auto-detects the vault from the current working directory. If working outside the vault tree, specify `vault` parameter with the vault root path.
