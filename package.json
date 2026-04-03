@@ -1,6 +1,6 @@
 {
   "name": "@fr0ziii/pi-memoria",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "BM25 search for Obsidian vaults, agent memory system for Pi",
   "type": "module",
   "main": "dist/index.js",
@@ -9,10 +9,9 @@
   },
   "files": [
     "dist/",
+    ".pi/extensions/",
     "extensions/",
     "skills/",
-    "SKILL.md",
-    "src/",
     "LICENSE.md",
     "README.md"
   ],
@@ -27,10 +26,10 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/memoria.ts"
+      "./.pi/extensions/memoria"
     ],
     "skills": [
-      "./skills/memoria/SKILL.md"
+      "./skills"
     ]
   },
   "scripts": {

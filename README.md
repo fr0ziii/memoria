@@ -16,11 +16,20 @@ pi install git:github.com/fr0ziii/memoria
 
 # Project-local
 pi install -l git:github.com/fr0ziii/memoria
+
+# Pinned release (recommended for teams)
+pi install git:github.com/fr0ziii/memoria@v0.3.0
 ```
 
-## What changed
+Verify install:
 
-Cache now follows execution directory.
+```bash
+pi list
+```
+
+## Runtime behavior
+
+Cache follows execution directory.
 
 If Pi runs in `/work/project-a`, memoria cache is created there:
 
@@ -59,6 +68,22 @@ memoria vault
 memoria search "query"
 memoria read "file"
 memoria index --rebuild
+```
+
+## Troubleshooting
+
+If you installed an old branch before this refactor:
+
+```bash
+pi remove git:github.com/fr0ziii/memoria
+pi install git:github.com/fr0ziii/memoria
+```
+
+For project-local installs:
+
+```bash
+pi remove -l git:github.com/fr0ziii/memoria
+pi install -l git:github.com/fr0ziii/memoria
 ```
 
 ## Development
