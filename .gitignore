@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.memoria/
+*.log
+memoria
+memoria-*
+*.lock

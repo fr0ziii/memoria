@@ -1,0 +1,55 @@
+{
+  "name": "memoria-pi",
+  "version": "0.1.0",
+  "description": "BM25 search for Obsidian vaults — agent memory system",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "memoria": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "skills/",
+    "src/",
+    "LICENSE.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build --compile src/index.ts --outfile memoria && bun build --compile src/index.ts --outfile dist/index.js",
+    "prepublishOnly": "bun run build",
+    "dev": "bun run src/index.ts",
+    "dev:search": "bun run src/index.ts search",
+    "dev:vault": "bun run src/index.ts vault",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidiglesiasm/memoria.git"
+  },
+  "keywords": [
+    "obsidian",
+    "bm25",
+    "search",
+    "vault",
+    "pi-skill",
+    "pi-package",
+    "agent-memory"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.5.0",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.2"
+  },
+  "dependencies": {
+    "minisearch": "^7.2.0"
+  }
+}
