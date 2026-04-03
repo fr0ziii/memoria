@@ -29,7 +29,7 @@
     ]
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "rm -rf dist && tsc && chmod +x dist/index.js",
     "dev": "bun run src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",

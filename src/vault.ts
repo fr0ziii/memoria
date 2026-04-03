@@ -59,14 +59,15 @@ function detectStructure(contentPath: string): VaultStructure {
   if (hasDateFolders) {
     dateFormat = "YYYY-MM-DD";
 
-    // Check for round pattern inside date folders
-    const firstDateFolder = entries.find((e) => e.isDirectory() && dateFolderPattern.test(e.name));
-    if (firstDateFolder) {
-      const datePath = path.join(contentPath, firstDateFolder.name);
+    // Check all date folders. The first one may be empty.
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !dateFolderPattern.test(entry.name)) continue;
+      const datePath = path.join(contentPath, entry.name);
       const dateEntries = fs.readdirSync(datePath);
-      const roundMatch = dateEntries.find((f) => f.match(/^round-\d+\.md$/i));
+      const roundMatch = dateEntries.find((f) => /^round-\d+\.md$/i.test(f));
       if (roundMatch) {
         roundPattern = "round-\\d+";
+        break;
       }
     }
   }
