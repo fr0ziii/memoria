@@ -10,7 +10,8 @@ BM25 search system for Obsidian vaults. Searches markdown notes with recency boo
 
 ## Installation
 
-For CLI usage:
+First time only — install the CLI globally:
+
 ```bash
 npm install -g git:github.com/fr0ziii/memoria
 ```
@@ -24,24 +25,22 @@ memoria <command>
 For example:
 
 ```bash
-cd <skill-directory> && bun run src/index.ts search "query"
-cd <skill-directory> && bun run src/index.ts read "filename"
-cd <skill-directory> && bun run src/index.ts vault
+memoria search "query"
+memoria read "filename"
+memoria vault
 ```
-
-**Important:** Always `cd` to the skill directory first before running commands.
 
 ## Quick Start
 
 ```bash
 # 1. Search for relevant notes
-cd <skill-directory> && bun run src/index.ts search "authentication"
+memoria search "authentication"
 
 # 2. Read the most relevant file
-cd <skill-directory> && bun run src/index.ts read "Architecture"
+memoria read "filename"
 
 # 3. Check vault info
-cd <skill-directory> && bun run src/index.ts vault
+memoria vault
 ```
 
 ## Tool Definitions
@@ -76,7 +75,7 @@ Searches relevant notes in the vault using BM25.
 ```
 
 **Usage:**
-1. Invoke with `cd <skill-directory> && bun run src/index.ts search "query"`
+1. Invoke with `memoria search "query"`
 2. Review results and filenames
 3. Invoke `memoria_read` on the most relevant files
 
@@ -103,7 +102,7 @@ Reads full content of a note.
 
 **Usage:**
 1. Use the filename or path returned by `memoria_search`
-2. Invoke with `cd <skill-directory> && bun run src/index.ts read "filename"`
+2. Invoke with `memoria read "filename"`
 
 ### memoria_vault
 
@@ -120,8 +119,7 @@ Shows vault info: detected structure, stats, location.
 }
 ```
 
-**Usage:**
-Invoke with `cd <skill-directory> && bun run src/index.ts vault`
+**Usage:** Invoke with `memoria vault`
 
 ### memoria_index
 
@@ -143,14 +141,13 @@ Search index management.
 }
 ```
 
-**Usage:**
-Invoke with `cd <skill-directory> && bun run src/index.ts index --rebuild`
+**Usage:** Invoke with `memoria index --rebuild`
 
 ## Workflow
 
 ```
-1. cd <skill-directory> && bun run src/index.ts search "query"     → find relevant files
-2. cd <skill-directory> && bun run src/index.ts read "<file>"      → read full content
+1. memoria search "query"     → find relevant files
+2. memoria read "<file>"      → read full content
 3. repeat as needed
 ```
 
@@ -191,4 +188,4 @@ score = BM25 + backlinks * 0.5 + recency
 
 - By default, no snippets are shown — use `--snippet-lines 2` if you need context
 - Scores are hidden by default — use `--score` only for debugging
-- If results are poor, run `cd <skill-directory> && bun run src/index.ts index --rebuild`
+- If results are poor, run `memoria index --rebuild`
