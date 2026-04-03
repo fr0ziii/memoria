@@ -1,7 +1,7 @@
 {
   "name": "@fr0ziii/pi-memoria",
-  "version": "0.1.0",
-  "description": "BM25 search for Obsidian vaults — agent memory system for Pi",
+  "version": "0.2.0",
+  "description": "BM25 search for Obsidian vaults, agent memory system for Pi",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -9,6 +9,8 @@
   },
   "files": [
     "dist/",
+    "extensions/",
+    "skills/",
     "SKILL.md",
     "src/",
     "LICENSE.md",
@@ -24,12 +26,17 @@
     "agent-memory"
   ],
   "pi": {
+    "extensions": [
+      "./extensions/memoria.ts"
+    ],
     "skills": [
-      "./"
+      "./skills/memoria/SKILL.md"
     ]
   },
   "scripts": {
     "build": "rm -rf dist && tsc && chmod +x dist/index.js",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
     "dev": "bun run src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -41,6 +48,18 @@
   "bundledDependencies": [
     "minisearch"
   ],
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@sinclair/typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    },
+    "@sinclair/typebox": {
+      "optional": true
+    }
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest",

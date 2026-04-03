@@ -1,8 +1,7 @@
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import * as crypto from "crypto";
 import MiniSearch from "minisearch";
-import { bold, dim } from "./output.js";
 import type { DocRecord, IndexCache, SearchResult, Snippet } from "./types.js";
 
 const CACHE_FILE = "search-cache.json";
@@ -45,11 +44,15 @@ export function listMarkdownFiles(contentPath: string): string[] {
   return files;
 }
 
+export function getCacheFilePath(cachePath: string): string {
+  return path.join(cachePath, CACHE_FILE);
+}
+
 /**
  * Load cached search index
  */
 export function loadCache(cachePath: string, fingerprint: string): IndexCache | null {
-  const cacheFile = path.join(cachePath, CACHE_FILE);
+  const cacheFile = getCacheFilePath(cachePath);
   try {
     const raw = fs.readFileSync(cacheFile, "utf-8");
     const data: IndexCache = JSON.parse(raw);
@@ -64,8 +67,18 @@ export function loadCache(cachePath: string, fingerprint: string): IndexCache | 
  * Save search cache
  */
 export function saveCache(cachePath: string, data: IndexCache): void {
-  const cacheFile = path.join(cachePath, CACHE_FILE);
+  const cacheFile = getCacheFilePath(cachePath);
   fs.writeFileSync(cacheFile, JSON.stringify(data));
+}
+
+/**
+ * Delete cached search index file.
+ */
+export function invalidateCache(cachePath: string): boolean {
+  const cacheFile = getCacheFilePath(cachePath);
+  if (!fs.existsSync(cacheFile)) return false;
+  fs.rmSync(cacheFile, { force: true });
+  return true;
 }
 
 /**
@@ -106,7 +119,7 @@ export function buildIndex(
   index.addAll(docs);
 
   // Build backlink counts
-  const backlinkCounts = buildBacklinkCounts(docs, contentPath);
+  const backlinkCounts = buildBacklinkCounts(docs);
 
   return { index, docs, backlinkCounts };
 }
@@ -129,21 +142,31 @@ function extractLinks(content: string): string[] {
 /**
  * Build map of file -> inbound link count
  */
-function buildBacklinkCounts(docs: DocRecord[], contentPath: string): Map<string, number> {
+function buildBacklinkCounts(docs: DocRecord[]): Map<string, number> {
   const counts = new Map<string, number>();
   const fileMap = new Map<string, string>();
 
   // Build map from basename to full relative path
   for (const doc of docs) {
-    const fullPath = path.join(contentPath, doc.file);
     fileMap.set(doc.basename, doc.file);
     fileMap.set(doc.file, doc.file);
+
+    // Also map file path without extension, for [[folder/file]] links.
+    const withoutExt = doc.file.replace(/\.md$/i, "");
+    fileMap.set(withoutExt, doc.file);
+
+    // Keep normalized variants to reduce case and slash issues.
+    fileMap.set(normalizeLinkTarget(doc.basename), doc.file);
+    fileMap.set(normalizeLinkTarget(doc.file), doc.file);
+    fileMap.set(normalizeLinkTarget(withoutExt), doc.file);
+
   }
 
   for (const doc of docs) {
     const links = extractLinks(doc.content);
     for (const link of links) {
-      const targetFile = fileMap.get(link);
+      const normalized = normalizeLinkTarget(link);
+      const targetFile = fileMap.get(link) || fileMap.get(normalized);
       if (targetFile) {
         counts.set(targetFile, (counts.get(targetFile) || 0) + 1);
       }
@@ -151,6 +174,10 @@ function buildBacklinkCounts(docs: DocRecord[], contentPath: string): Map<string
   }
 
   return counts;
+}
+
+function normalizeLinkTarget(link: string): string {
+  return link.trim().replace(/\\/g, "/").replace(/\.md$/i, "").toLowerCase();
 }
 
 /**
@@ -230,7 +257,19 @@ export interface SearchOptions {
  * Execute search
  */
 export function search(options: SearchOptions): SearchResult[] {
-  const { query, vaultPath, cachePath, limit = 10, snippetLines = 0, showScore, showLinks } = options;
+  const {
+    query,
+    vaultPath,
+    cachePath,
+    limit = 10,
+    snippetLines = 0,
+    showScore,
+    showLinks,
+    folder,
+  } = options;
+
+  void showScore;
+  void showLinks;
 
   const fingerprint = computeFingerprint(vaultPath);
   const cached = loadCache(cachePath, fingerprint);
@@ -251,11 +290,17 @@ export function search(options: SearchOptions): SearchResult[] {
       },
     });
 
-    docs = cached.docs.map((d) => {
-      const fullPath = path.join(vaultPath, d.file);
-      const content = fs.readFileSync(fullPath, "utf-8");
-      return { ...d, content };
-    });
+    docs = cached.docs
+      .map((d) => {
+        const fullPath = path.join(vaultPath, d.file);
+        try {
+          const content = fs.readFileSync(fullPath, "utf-8");
+          return { ...d, content };
+        } catch {
+          return null;
+        }
+      })
+      .filter((d): d is DocRecord => d !== null);
 
     backlinkCounts = new Map(Object.entries(cached.backlinkCounts));
   } else {
@@ -274,45 +319,96 @@ export function search(options: SearchOptions): SearchResult[] {
     });
   }
 
+  const resultLimit = clamp(limit, 1, 200);
+  const safeSnippetLines = clamp(snippetLines, 0, 20);
+  const folderFilter = normalizeFolderFilter(folder);
+
+  const docsById = new Map(docs.map((doc) => [doc.id, doc]));
+
   const results = index.search(query);
 
   // Compute composite scores
-  const maxMtime = Math.max(...docs.map((d) => d.mtime));
-  const minMtime = Math.min(...docs.map((d) => d.mtime));
+  const mtimes = docs.map((d) => d.mtime);
+  const maxMtime = mtimes.length ? Math.max(...mtimes) : Date.now();
+  const minMtime = mtimes.length ? Math.min(...mtimes) : Date.now();
   const mtimeRange = maxMtime - minMtime || 1;
 
-  const scored = results.map((r) => {
-    const doc = docs[r.id];
-    const bm25Score = r.score;
-    const links = backlinkCounts.get(doc.file) || 0;
-    const recency = (doc.mtime - minMtime) / mtimeRange;
+  const scored = results
+    .map((r) => {
+      const doc = docsById.get(r.id as number);
+      if (!doc) return null;
 
-    // Composite: BM25 dominates, backlinks and recency are boosters
-    const composite = bm25Score + links * 0.5 + recency * 1.0;
+      const bm25Score = r.score;
+      const links = backlinkCounts.get(doc.file) || 0;
+      const recency = (doc.mtime - minMtime) / mtimeRange;
 
-    return {
-      file: doc.file,
-      basename: doc.basename,
-      folder: doc.folder,
-      score: Math.round(composite * 10) / 10,
-      links,
-      modified: relativeTime(doc.mtime),
-      snippets:
-        snippetLines > 0
-          ? extractSnippets(doc.content, query, snippetLines)
-          : [],
-    };
-  });
+      // Composite: BM25 dominates, backlinks and recency are boosters
+      const composite = bm25Score + links * 0.5 + recency * 1.0;
+
+      return {
+        file: doc.file,
+        basename: doc.basename,
+        folder: doc.folder,
+        score: Math.round(composite * 10) / 10,
+        links,
+        modified: relativeTime(doc.mtime),
+        snippets:
+          safeSnippetLines > 0
+            ? extractSnippets(doc.content, query, safeSnippetLines)
+            : [],
+      };
+    })
+    .filter((item): item is SearchResult => item !== null)
+    .filter((item) => matchesFolderFilter(item.file, folderFilter));
 
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  return scored.slice(0, resultLimit);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+function normalizeFolderFilter(folder?: string): string | null {
+  if (!folder) return null;
+  const normalized = folder
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+function matchesFolderFilter(file: string, folderFilter: string | null): boolean {
+  if (!folderFilter) return true;
+
+  const normalizedFile = file.replace(/\\/g, "/").toLowerCase();
+  return normalizedFile === folderFilter || normalizedFile.startsWith(`${folderFilter}/`);
+}
+
+function resolveVaultFilePath(vaultPath: string, file: string): string | null {
+  const root = path.resolve(vaultPath);
+  const target = path.resolve(root, file);
+  const relative = path.relative(root, target);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  return target;
 }
 
 /**
  * Read file content
  */
 export function readFile(vaultPath: string, file: string): string | null {
-  const fullPath = path.join(vaultPath, file);
+  const fullPath = resolveVaultFilePath(vaultPath, file);
+  if (!fullPath) return null;
+
   try {
     return fs.readFileSync(fullPath, "utf-8");
   } catch {

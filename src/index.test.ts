@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { spawn } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import { createTempVault } from './test-utils';
 
@@ -85,6 +86,20 @@ describe('CLI', () => {
       expect(data.stats.totalFiles).toBe(4);
     });
 
+    it('should create .memoria in execution directory when --vault is used', async () => {
+      const runDir = fs.mkdtempSync('/tmp/memoria-run-');
+
+      try {
+        const result = await runCli(['vault', '--vault', vault.dir, '--json'], runDir);
+        expect(result.exitCode).toBe(0);
+
+        const cacheRoot = path.join(runDir, '.memoria');
+        expect(fs.existsSync(cacheRoot)).toBe(true);
+      } finally {
+        fs.rmSync(runDir, { recursive: true, force: true });
+      }
+    });
+
     it('should error when not in vault', async () => {
       const result = await runCli(['vault'], '/tmp');
 
@@ -132,6 +147,14 @@ describe('CLI', () => {
 
       const lines = result.stdout.trim().split('\n').filter(l => l.includes('.md'));
       expect(lines.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should filter by folder with --folder', async () => {
+      const result = await runCli(['search', 'code', '--folder', 'engineering'], vault.dir);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('engineering/notes.md');
+      expect(result.stdout).not.toContain('AGENTS.md');
     });
 
     it('should show "No results" for empty query', async () => {

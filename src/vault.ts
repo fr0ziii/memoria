@@ -1,15 +1,17 @@
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import type { VaultInfo, VaultStructure, VaultStats } from "./types.js";
 
 const OBSIDIAN_CONFIG = ".obsidian";
 const CACHE_DIR = ".memoria";
+const CACHE_NAMESPACE_PREFIX = "vault-";
 
 /**
  * Find vault root by walking up looking for .obsidian folder
  */
 export function findVault(cwd?: string): VaultInfo | null {
-  let dir = cwd || process.cwd();
+  let dir = path.resolve(cwd || process.cwd());
 
   while (dir !== path.dirname(dir)) {
     const configPath = path.join(dir, OBSIDIAN_CONFIG);
@@ -86,7 +88,7 @@ function detectStructure(contentPath: string): VaultStructure {
   });
 
   // Collect folders
-  collectFolders(contentPath, folders);
+  collectFolders(contentPath, folders, contentPath);
 
   return {
     dateFormat,
@@ -110,15 +112,21 @@ function scanFiles(dir: string, callback: (file: string) => void): void {
   }
 }
 
-function collectFolders(dir: string, folders: string[], depth = 0, maxDepth = 3): void {
+function collectFolders(
+  dir: string,
+  folders: string[],
+  rootDir: string,
+  depth = 0,
+  maxDepth = 3,
+): void {
   if (depth > maxDepth) return;
 
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory() && !entry.name.startsWith(".")) {
-      const relativePath = path.relative(dir, path.join(dir, entry.name));
-      folders.push(relativePath);
-      collectFolders(path.join(dir, entry.name), folders, depth + 1, maxDepth);
+      const fullPath = path.join(dir, entry.name);
+      folders.push(path.relative(rootDir, fullPath));
+      collectFolders(fullPath, folders, rootDir, depth + 1, maxDepth);
     }
   }
 }
@@ -126,6 +134,7 @@ function collectFolders(dir: string, folders: string[], depth = 0, maxDepth = 3)
 function computeStats(contentPath: string): VaultStats {
   const files: { path: string; mtime: number; size: number }[] = [];
   let totalSize = 0;
+  let totalFolders = 0;
 
   scanFiles(contentPath, (file) => {
     const stat = fs.statSync(file);
@@ -133,30 +142,66 @@ function computeStats(contentPath: string): VaultStats {
     totalSize += stat.size;
   });
 
+  const scanFolders = (dir: string) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      totalFolders += 1;
+      scanFolders(path.join(dir, entry.name));
+    }
+  };
+
+  scanFolders(contentPath);
+
   const mtimes = files.map((f) => f.mtime);
 
   return {
     totalFiles: files.length,
-    totalFolders: 0,
+    totalFolders,
     totalSize,
     oldestMtime: mtimes.length ? Math.min(...mtimes) : Date.now(),
     newestMtime: mtimes.length ? Math.max(...mtimes) : Date.now(),
   };
 }
 
-/**
- * Get cache directory path
- */
-export function getCachePath(vaultRoot: string): string {
-  return path.join(vaultRoot, CACHE_DIR);
+function getVaultCacheNamespace(vaultRoot: string): string {
+  const normalized = path.resolve(vaultRoot);
+  const hash = crypto.createHash("sha1").update(normalized).digest("hex").slice(0, 12);
+  return `${CACHE_NAMESPACE_PREFIX}${hash}`;
 }
 
 /**
- * Ensure cache directory exists
+ * Get cache root path for the directory where memoria was invoked.
  */
-export function ensureCacheDir(vaultRoot: string): void {
-  const cachePath = getCachePath(vaultRoot);
+export function getCacheRoot(runDir: string): string {
+  return path.join(path.resolve(runDir), CACHE_DIR);
+}
+
+/**
+ * Get cache directory path for a specific vault.
+ *
+ * By default the cache is kept in the vault root for backward compatibility.
+ * Pass runDir to keep cache in the execution directory instead.
+ */
+export function getCachePath(vaultRoot: string, runDir: string = vaultRoot): string {
+  return path.join(getCacheRoot(runDir), getVaultCacheNamespace(vaultRoot));
+}
+
+/**
+ * Ensure cache directories exist.
+ * Returns the resolved vault-specific cache path.
+ */
+export function ensureCacheDir(vaultRoot: string, runDir: string = vaultRoot): string {
+  const cacheRoot = getCacheRoot(runDir);
+  const cachePath = getCachePath(vaultRoot, runDir);
+
+  if (!fs.existsSync(cacheRoot)) {
+    fs.mkdirSync(cacheRoot, { recursive: true });
+  }
+
   if (!fs.existsSync(cachePath)) {
     fs.mkdirSync(cachePath, { recursive: true });
   }
+
+  return cachePath;
 }

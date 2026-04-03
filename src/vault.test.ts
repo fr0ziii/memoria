@@ -118,9 +118,14 @@ describe('findVault', () => {
 });
 
 describe('getCachePath', () => {
-  it('should return path to .memoria directory', () => {
+  it('should return namespaced cache path in vault root by default', () => {
     const cachePath = getCachePath('/some/vault');
-    expect(cachePath).toBe('/some/vault/.memoria');
+    expect(cachePath).toMatch(/^\/some\/vault\/\.memoria\/vault-[a-f0-9]{12}$/);
+  });
+
+  it('should place cache under custom run directory', () => {
+    const cachePath = getCachePath('/some/vault', '/tmp/run-dir');
+    expect(cachePath).toMatch(/^\/tmp\/run-dir\/\.memoria\/vault-[a-f0-9]{12}$/);
   });
 });
 

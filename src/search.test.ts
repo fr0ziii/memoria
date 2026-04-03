@@ -6,6 +6,7 @@ import {
   relativeTime,
   computeFingerprint,
   listMarkdownFiles,
+  readFile,
 } from './search';
 import { createTempVault, createMockDoc } from './test-utils';
 
@@ -166,6 +167,19 @@ describe('listMarkdownFiles', () => {
 
     expect(files).toHaveLength(1);
     expect(files[0].endsWith('.md')).toBe(true);
+
+    vault.cleanup();
+  });
+});
+
+describe('readFile security', () => {
+  it('should block path traversal outside vault root', async () => {
+    const vault = await createTempVault({
+      files: [{ name: 'note.md', content: 'safe' }],
+    });
+
+    const content = readFile(vault.dir, '../etc/passwd');
+    expect(content).toBeNull();
 
     vault.cleanup();
   });

@@ -1,18 +1,14 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
-import * as fs from "fs";
 import { bold, dim, formatJson, formatVaultInfo } from "./output.js";
-import { findVault, getCachePath, ensureCacheDir } from "./vault.js";
-import { search, readFile, listMarkdownFiles } from "./search.js";
+import { resolveRuntime, runIndex, runRead, runSearch } from "./runtime.js";
 
 function parseArgs(args: string[]): {
   command: string;
-  subcommand?: string;
   options: Record<string, string | boolean>;
   positional: string[];
 } {
   let command = "";
-  let subcommand = "";
   const options: Record<string, string | boolean> = {};
   const positional: string[] = [];
   let i = 0;
@@ -23,8 +19,6 @@ function parseArgs(args: string[]): {
     if (arg === "search" || arg === "read" || arg === "vault" || arg === "index" || arg === "--help" || arg === "-h") {
       if (!command) {
         command = arg;
-      } else if (arg !== "--help" && arg !== "-h") {
-        subcommand = arg;
       }
     } else if (arg.startsWith("--")) {
       const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -37,7 +31,6 @@ function parseArgs(args: string[]): {
     } else if (arg.startsWith("-")) {
       const key = arg.slice(1);
       if (key === "j") options["json"] = true;
-      else if (key === "v") options["verbose"] = true;
       else if (key === "h") options["help"] = true;
       else options[key] = true;
     } else {
@@ -46,12 +39,12 @@ function parseArgs(args: string[]): {
     i++;
   }
 
-  return { command, subcommand, options, positional };
+  return { command, options, positional };
 }
 
 function help() {
   console.log(`
-${bold("memoria")} — BM25 search for Obsidian vaults
+${bold("memoria")} - BM25 search for Obsidian vaults
 
 ${bold("Commands:")}
 
@@ -62,6 +55,7 @@ ${bold("Commands:")}
 
 ${bold("Options:")}
 
+  --vault <path>                   Vault root or path inside vault
   --json                           JSON output
   --limit <n>                      Max results (default: 10)
   --snippet-lines <n>              Context lines (default: 0)
@@ -73,49 +67,59 @@ ${bold("Options:")}
   `);
 }
 
+function parseNumber(value: string | boolean | undefined, fallback: number): number {
+  if (typeof value !== "string") return fallback;
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return parsed;
+}
+
 export async function main() {
   const args = process.argv.slice(2);
   const { command, options, positional } = parseArgs(args);
 
-  const vault = findVault();
-  if (!vault) {
-    console.error("Error: Not in an Obsidian vault (no .obsidian folder found)");
+  if (command === "--help" || command === "-h" || command === "help") {
+    help();
+    return;
+  }
+
+  if (!command && positional.length === 0 && Object.keys(options).length === 0) {
+    help();
+    return;
+  }
+
+  if (!command) {
+    help();
     process.exit(1);
   }
 
-  ensureCacheDir(vault.root);
+  const runtime = resolveRuntime(process.cwd(), options.vault as string | undefined);
 
   switch (command) {
     case "vault": {
       if (options.json) {
         console.log(formatJson({
-          root: vault.root,
-          structure: vault.structure,
-          stats: vault.stats,
+          root: runtime.vault.root,
+          structure: runtime.vault.structure,
+          stats: runtime.vault.stats,
+          cache: runtime.cachePath,
         }));
       } else {
-        console.log(formatVaultInfo(vault));
+        console.log(formatVaultInfo(runtime.vault));
+        console.log(`cache: ${runtime.cachePath}`);
       }
       break;
     }
 
     case "search": {
-      const query = positional.join(" ") || options.query as string || "";
-      if (!query) {
-        console.error("Error: No query specified");
-        process.exit(1);
-      }
-
-      const results = search({
+      const query = positional.join(" ") || (options.query as string) || "";
+      const results = runSearch(runtime, {
         query,
-        vaultPath: vault.contentPath,
-        cachePath: getCachePath(vault.root),
-        limit: options.limit ? parseInt(options.limit as string) : 10,
-        snippetLines: options.snippetLines ? parseInt(options.snippetLines as string) : 0,
+        limit: parseNumber(options.limit, 10),
+        snippetLines: parseNumber(options.snippetLines, 0),
         showScore: options.score === true,
         showLinks: options.links === true,
-        folder: options.folder as string,
-        json: options.json === true,
+        folder: options.folder as string | undefined,
       });
 
       if (options.json) {
@@ -123,16 +127,16 @@ export async function main() {
       } else if (results.length === 0) {
         console.log("No results found.");
       } else {
-        for (const r of results) {
-          const parts = [bold(r.file)];
-          if (options.score) parts.push(dim(`score: ${r.score}`));
-          if (options.links) parts.push(dim(`links: ${r.links}`));
-          parts.push(dim(`(${r.modified})`));
+        for (const result of results) {
+          const parts = [bold(result.file)];
+          if (options.score) parts.push(dim(`score: ${result.score}`));
+          if (options.links) parts.push(dim(`links: ${result.links}`));
+          parts.push(dim(`(${result.modified})`));
           console.log(parts.join(" "));
 
-          if (r.snippets.length > 0) {
-            for (const s of r.snippets) {
-              console.log(`  ${dim(`${s.line}:`)} ${s.text}`);
+          if (result.snippets.length > 0) {
+            for (const snippet of result.snippets) {
+              console.log(`  ${dim(`${snippet.line}:`)} ${snippet.text}`);
             }
           }
         }
@@ -143,58 +147,34 @@ export async function main() {
     }
 
     case "read": {
-      const file = positional[0] || options.file as string;
-      if (!file) {
-        console.error("Error: No file specified");
-        process.exit(1);
+      const file = positional[0] || (options.file as string);
+      const readResult = runRead(runtime, file || "");
+      if (options.json) {
+        console.log(formatJson(readResult));
+      } else {
+        console.log(readResult.content);
       }
-
-      let content = readFile(vault.contentPath, file);
-      if (!content && !file.endsWith(".md")) {
-        content = readFile(vault.contentPath, `${file}.md`);
-      }
-
-      if (!content) {
-        const files = listMarkdownFiles(vault.contentPath);
-        const match = files.find(
-          (f) => f.endsWith(`/${file}.md`) || f.endsWith(`/${file}`)
-        );
-        if (match) {
-          content = fs.readFileSync(match, "utf-8");
-        }
-      }
-
-      if (!content) {
-        console.error(`Error: File not found: ${file}`);
-        process.exit(1);
-      }
-
-      console.log(content);
       break;
     }
 
     case "index": {
       if (options.rebuild) {
-        const { computeFingerprint } = await import("./search.js");
-        const fingerprint = computeFingerprint(vault.contentPath);
-        console.log(`Cache invalidated. Next search will rebuild index.`);
-        console.log(`Fingerprint: ${fingerprint}`);
+        const result = runIndex(runtime, true);
+        if (result.removed) {
+          console.log("Cache invalidated. Next search will rebuild index.");
+        } else {
+          console.log("No cache file found. Next search will build index.");
+        }
+        console.log(`Fingerprint: ${result.fingerprint}`);
       } else {
         console.log("Use --rebuild to force cache rebuild.");
       }
       break;
     }
 
-    case "--help":
-    case "-h":
-    case "help":
     default: {
-      if (positional.length === 0 && Object.keys(options).length === 0) {
-        help();
-      } else {
-        help();
-        process.exit(1);
-      }
+      help();
+      process.exit(1);
     }
   }
 }

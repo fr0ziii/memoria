@@ -1,135 +1,74 @@
 # memoria
 
-*_This tool was made in 1 session, pure slop, read:_*
+BM25 search for Obsidian vaults. Built for Pi as one package with:
 
-BM25 search for Obsidian vaults — pi-first agent memory system.
+- extension tools (`memoria_search`, `memoria_read`, `memoria_vault`, `memoria_index`)
+- skill (`memoria`)
+- slash command CLI (`/memoria ...`)
 
-No embeddings, no graphs, no preprocessing. Just full-text search with recency boosting.
+No embeddings. No graph DB. Full-text search with recency + backlinks.
 
-## Features
-
-- **BM25 search** — Full-text search using MiniSearch
-- **Recency boosting** — Recent notes rank higher
-- **Backlink awareness** — Linked notes get a boost
-- **Auto-detect vault** — Works with any Obsidian vault structure
-- **Agent-first CLI** — JSON output, no decoration, progressive disclosure
-
-## How it works
-
-```mermaid
-flowchart TD
-    A["vault/.obsidian"] --> B[Find vault root]
-    B --> C{Index cached?}
-    C -->|No| D[Walk markdown files]
-    C -->|Yes| E[Load cache]
-    D --> F[Build MiniSearch index]
-    F --> G[Extract backlinks]
-    G --> H[Save to .memoria/]
-    H --> I[Search ready]
-    E --> I
-    
-    J["memoria search 'query'"] --> K[Execute BM25 search]
-    K --> L[Calculate composite score]
-    I --> L
-    
-    L --> M["score = BM25 + backlinks×0.5 + recency"]
-    M --> N[Sort by score]
-    N --> O[Return ranked results]
-```
-
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant memoria
-    participant Vault
-    participant Cache
-    
-    Agent->>memoria: search "auth"
-    memoria->>Cache: Check fingerprint
-    Cache-->>memoria: Cache valid?
-    
-    alt Cache miss
-        memoria->>Vault: Walk .md files
-        Vault-->>memoria: File list
-        memoria->>memoria: Build BM25 index
-        memoria->>Cache: Save index
-    end
-    
-    memoria->>memoria: Score: BM25 + backlinks + recency
-    memoria->>memoria: Sort results
-    memoria-->>Agent: Ranked files + snippets
-    
-    Agent->>memoria: read "Auth Guide"
-    memoria-->>Agent: Full file content
-```
-
-## Installation
-
-This is a pi package. Install it with pi so the skill auto-loads.
+## Install
 
 ```bash
-# Global install
+# Global
 pi install git:github.com/fr0ziii/memoria
 
-# Project-local install
+# Project-local
 pi install -l git:github.com/fr0ziii/memoria
 ```
 
-The repo root is the skill root. Users can run from source or build first.
+## What changed
+
+Cache now follows execution directory.
+
+If Pi runs in `/work/project-a`, memoria cache is created there:
+
+```txt
+/work/project-a/.memoria/
+```
+
+Each vault gets its own namespaced cache folder inside `.memoria`.
+
+## Extension tools
+
+- `memoria_search`
+- `memoria_read`
+- `memoria_vault`
+- `memoria_index`
+
+These are used by the skill automatically.
+
+## Slash command CLI
 
 ```bash
-# Run from source
-bun install
-bun run src/index.ts search "authentication"
-
-# Optional build
-bun run build
-node dist/index.js search "authentication"
+/memoria vault
+/memoria search "authentication"
+/memoria read "Architecture"
+/memoria index --rebuild
 ```
 
-## Usage
+Use `--vault <path>` when your cwd is not inside the target vault.
+
+## Standalone binary (optional)
+
+This package still ships the `memoria` binary:
 
 ```bash
-# Run from source
-bun run src/index.ts search "authentication"
-bun run src/index.ts read "Architecture"
-bun run src/index.ts vault
-
-# Or after build
-node dist/index.js search "authentication"
-node dist/index.js read "Architecture"
-node dist/index.js vault
+memoria vault
+memoria search "query"
+memoria read "file"
+memoria index --rebuild
 ```
-
-## Options
-
-| Flag | Description |
-|------|-------------|
-| `--json` | JSON output |
-| `--limit <n>` | Max results (default: 10) |
-| `--snippet-lines <n>` | Context lines around matches |
-| `--score` | Show relevance score |
-| `--links` | Show backlink counts |
-| `--rebuild` | Force cache rebuild |
-
-## Scoring
-
-```
-score = BM25 + backlinks × 0.5 + recency
-```
-
-- **BM25** — Text relevance
-- **backlinks** — Files linking to this (0.5x boost)
-- **recency** — Normalized 0-1 based on file mtime
 
 ## Development
 
 ```bash
 bun install
-bun run dev -- vault
-bun run dev -- search "query"
+bun run build
+bun run test
 ```
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md)
+MIT
