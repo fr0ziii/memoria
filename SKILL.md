@@ -33,34 +33,34 @@ cd <skill-directory> && npm run build
 Prefer running from source when Bun is available:
 
 ```bash
-cd <skill-directory> && bun run src/cli.ts <command>
+cd <skill-directory> && bun run src/index.ts <command>
 ```
 
 If the package was built, Node also works:
 
 ```bash
-cd <skill-directory> && node dist/cli.js <command>
+cd <skill-directory> && node dist/index.js <command>
 ```
 
 For example:
 
 ```bash
-cd <skill-directory> && bun run src/cli.ts search "query"
-cd <skill-directory> && bun run src/cli.ts read "filename"
-cd <skill-directory> && bun run src/cli.ts vault
+cd <skill-directory> && bun run src/index.ts search "query"
+cd <skill-directory> && bun run src/index.ts read "filename"
+cd <skill-directory> && bun run src/index.ts vault
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Search for relevant notes
-cd <skill-directory> && bun run src/cli.ts search "authentication"
+cd <skill-directory> && bun run src/index.ts search "authentication"
 
 # 2. Read the most relevant file
-cd <skill-directory> && bun run src/cli.ts read "filename"
+cd <skill-directory> && bun run src/index.ts read "filename"
 
 # 3. Check vault info
-cd <skill-directory> && bun run src/cli.ts vault
+cd <skill-directory> && bun run src/index.ts vault
 ```
 
 ## Tool Definitions
@@ -95,7 +95,7 @@ Searches relevant notes in the vault using BM25.
 ```
 
 **Usage:**
-1. Invoke with `cd <skill-directory> && bun run src/cli.ts search "query"`
+1. Invoke with `cd <skill-directory> && bun run src/index.ts search "query"`
 2. Review results and filenames
 3. Invoke `memoria_read` on the most relevant files
 
@@ -122,7 +122,7 @@ Reads full content of a note.
 
 **Usage:**
 1. Use the filename or path returned by `memoria_search`
-2. Invoke with `cd <skill-directory> && bun run src/cli.ts read "filename"`
+2. Invoke with `cd <skill-directory> && bun run src/index.ts read "filename"`
 
 ### memoria_vault
 
@@ -139,7 +139,7 @@ Shows vault info: detected structure, stats, location.
 }
 ```
 
-**Usage:** Invoke with `cd <skill-directory> && bun run src/cli.ts vault`
+**Usage:** Invoke with `cd <skill-directory> && bun run src/index.ts vault`
 
 ### memoria_index
 
@@ -161,13 +161,13 @@ Search index management.
 }
 ```
 
-**Usage:** Invoke with `cd <skill-directory> && bun run src/cli.ts index --rebuild`
+**Usage:** Invoke with `cd <skill-directory> && bun run src/index.ts index --rebuild`
 
 ## Workflow
 
 ```
-1. cd <skill-directory> && bun run src/cli.ts search "query"  → find relevant files
-2. cd <skill-directory> && bun run src/cli.ts read "<file>"   → read full content
+1. cd <skill-directory> && bun run src/index.ts search "query"  → find relevant files
+2. cd <skill-directory> && bun run src/index.ts read "<file>"   → read full content
 3. repeat as needed
 ```
 
@@ -208,4 +208,4 @@ score = BM25 + backlinks * 0.5 + recency
 
 - By default, no snippets are shown, use `--snippet-lines 2` if you need context
 - Scores are hidden by default, use `--score` only for debugging
-- If results are poor, run `cd <skill-directory> && bun run src/cli.ts index --rebuild`
+- If results are poor, run `cd <skill-directory> && bun run src/index.ts index --rebuild`

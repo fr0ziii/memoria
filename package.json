@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "memoria": "./dist/cli.js"
+    "memoria": "./dist/index.js"
   },
   "files": [
     "dist/",
@@ -29,8 +29,8 @@
     ]
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/cli.js",
-    "dev": "bun run src/cli.ts",
+    "build": "tsc && chmod +x dist/index.js",
+    "dev": "bun run src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

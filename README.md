@@ -80,25 +80,25 @@ The repo root is the skill root. Users can run from source or build first.
 ```bash
 # Run from source
 bun install
-bun run src/cli.ts search "authentication"
+bun run src/index.ts search "authentication"
 
 # Optional build
 bun run build
-node dist/cli.js search "authentication"
+node dist/index.js search "authentication"
 ```
 
 ## Usage
 
 ```bash
 # Run from source
-bun run src/cli.ts search "authentication"
-bun run src/cli.ts read "Architecture"
-bun run src/cli.ts vault
+bun run src/index.ts search "authentication"
+bun run src/index.ts read "Architecture"
+bun run src/index.ts vault
 
 # Or after build
-node dist/cli.js search "authentication"
-node dist/cli.js read "Architecture"
-node dist/cli.js vault
+node dist/index.js search "authentication"
+node dist/index.js read "Architecture"
+node dist/index.js vault
 ```
 
 ## Options
