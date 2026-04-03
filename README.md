@@ -65,32 +65,40 @@ sequenceDiagram
 
 ## Installation
 
-This is a pi skill — it provides documentation and CLI tools for the pi coding agent.
+This is a pi package. Install it with pi so the skill auto-loads.
 
 ```bash
-# Install as pi package
+# Global install
 pi install git:github.com/fr0ziii/memoria
 
-# Or clone into your skills folder
-git clone https://github.com/fr0ziii/memoria.git .pi/skills/memoria
+# Project-local install
+pi install -l git:github.com/fr0ziii/memoria
+```
 
-# Build the CLI (requires bun)
-cd .pi/skills/memoria
+The repo root is the skill root. Users can run from source or build first.
+
+```bash
+# Run from source
 bun install
-bun build --compile src/index.ts --outfile memoria
+bun run src/cli.ts search "authentication"
+
+# Optional build
+bun run build
+node dist/cli.js search "authentication"
 ```
 
 ## Usage
 
 ```bash
-# Search notes
-memoria search "authentication"
+# Run from source
+bun run src/cli.ts search "authentication"
+bun run src/cli.ts read "Architecture"
+bun run src/cli.ts vault
 
-# Read a file
-memoria read "Architecture"
-
-# Vault info
-memoria vault
+# Or after build
+node dist/cli.js search "authentication"
+node dist/cli.js read "Architecture"
+node dist/cli.js vault
 ```
 
 ## Options

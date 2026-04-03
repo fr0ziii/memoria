@@ -9,7 +9,7 @@
   },
   "files": [
     "dist/",
-    "skills/",
+    "SKILL.md",
     "src/",
     "LICENSE.md",
     "README.md"
@@ -25,7 +25,7 @@
   ],
   "pi": {
     "skills": [
-      "./skills"
+      "./"
     ]
   },
   "scripts": {
