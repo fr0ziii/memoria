@@ -1,5 +1,6 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
+import * as fs from "fs";
 import { bold, dim, formatJson, formatVaultInfo } from "./output.js";
 import { findVault, getCachePath, ensureCacheDir } from "./vault.js";
 import { search, readFile, listMarkdownFiles } from "./search.js";
@@ -210,8 +211,6 @@ async function main() {
     }
   }
 }
-
-import * as fs from "fs";
 
 main().catch((err) => {
   console.error(`Error: ${err.message}`);

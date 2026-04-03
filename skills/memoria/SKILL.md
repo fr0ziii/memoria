@@ -8,20 +8,17 @@ license: MIT
 
 BM25 search system for Obsidian vaults. Searches markdown notes with recency boosting and backlink awareness.
 
-## Setup
+## Installation
 
-First time only — install dependencies:
-
+For CLI usage:
 ```bash
-cd <skill-directory> && bun install
+npm install -g git:github.com/fr0ziii/memoria
 ```
 
 ## How to invoke
 
-Use `bun run` from the skill directory:
-
 ```bash
-cd <skill-directory> && bun run src/index.ts <command>
+memoria <command>
 ```
 
 For example:
